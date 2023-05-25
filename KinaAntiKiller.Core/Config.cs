@@ -1,5 +1,6 @@
 ﻿using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Unicode;
 
 namespace AntiKiller.Core
@@ -21,8 +22,13 @@ namespace AntiKiller.Core
             {
                 try
                 {
-                    var config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath), DefaultSerializerOptions);
-                    return config!;
+                    var json = JsonNode.Parse(File.ReadAllText(ConfigPath)); //为了对付裁剪
+                    var config = new Config()
+                    {
+                        UId = json[nameof(UId)]?.GetValue<long>() ?? 0,
+                        Cookie = json[nameof(Cookie)]?.GetValue<string>() ?? string.Empty,
+                    };
+                    return config;
                 }
                 catch
                 {

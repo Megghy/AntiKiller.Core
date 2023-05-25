@@ -229,8 +229,7 @@ namespace AntiKiller.Core
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"https://api.bilibili.com/x/space/acc/relation?mid={uid}");
             requestMessage.Headers.TryAddWithoutValidation("Cookie", Config.Instance.Cookie);
-            var json = await client.Send(requestMessage)?.Content?.ReadAsStringAsync();
-            var jsonNode = JsonNode.Parse(json);
+            var jsonNode = JsonNode.Parse(await client.Send(requestMessage)?.Content?.ReadAsStreamAsync());
             if (jsonNode["code"].GetValue<int>() == 0)
             {
                 var attribute = jsonNode["data"]["be_relation"]["attribute"].GetValue<int>();
