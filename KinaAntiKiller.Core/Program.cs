@@ -12,8 +12,6 @@ if (Config.Instance.UId <= 0 || string.IsNullOrEmpty(Config.Instance.Cookie))
 else
 {
     Datas.Init();
-    Searcher.Init();
     UnfollowLog.Init();
-    while (true)
-        Task.Delay(1).Wait();
+    await Searcher.DoSearch();
 }

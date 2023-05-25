@@ -4,12 +4,8 @@ namespace AntiKiller.Core
 {
     public static class Searcher
     {
-        public static void Init()
-        {
-            Task.Run(DoSearch);
-        }
         public const int PAGE_SIZE = 50;
-        public static readonly HttpClient client = new HttpClient();
+        public static readonly HttpClient client = new();
         public static async Task DoSearch()
         {
             while (true)
@@ -73,12 +69,12 @@ namespace AntiKiller.Core
                         }
                         catch (Exception ex)
                         {
-                            Logs.Error($"获取失败. pn: {pageNum}");
+                            Logs.Error($"获取失败. pn: {pageNum}\r\n{ex}");
                             await Task.Delay(10000);
                         }
                     }
                     if (fans.Count > 0 && isSuccess)
-                        CheckFans(fans);
+                        await CheckFans(fans);
 
                     Console.WriteLine();
                 }
@@ -92,7 +88,7 @@ namespace AntiKiller.Core
                 }
             }
         }
-        public static void CheckFans(List<FansInfo> fans)
+        public static async Task CheckFans(List<FansInfo> fans)
         {
             if (Datas.Fans.Count == 0)
             {
@@ -109,20 +105,20 @@ namespace AntiKiller.Core
                 {
                     try
                     {
-                        var followResult = IsFollowingMe(user.Id);
+                        var followResult = await IsFollowingMe(user.Id);
                         if (followResult == true)
                         {
-                            if (user.FollowDate > fans.Last().FollowDate)
+                            if (user.FollowDate < fans.Min(f => f.FollowDate))
                             {
                                 Logs.Info($"{user} 已不再可观测.");
                                 user.IsVisiable = false;
                                 Datas.COL_FANS.Update(user);
-                                unfollow.Remove(user); //超出1000个了, 之后不再包含他
                             }
                             else
                             {
                                 //只是由于位置变动暂时获取不到
                             }
+                            unfollow.Remove(user);
                         }
                         else if (!followResult.HasValue) //如果暂时没获取到关注状态先不管, 以免误操作
                         {
@@ -171,11 +167,11 @@ namespace AntiKiller.Core
                             content.Headers.Add("Cookie", Config.Instance.Cookie);
                             try
                             {
-                                var response = client.PostAsync("https://api.bilibili.com/x/relation/modify", content).Result;
-                                var json = JsonNode.Parse(response.Content.ReadAsStringAsync().Result);
+                                var response = await client.PostAsync("https://api.bilibili.com/x/relation/modify", content);
+                                var json = JsonNode.Parse(await response.Content.ReadAsStreamAsync());
                                 if (json["code"]?.GetValue<int>() == 0)
                                 {
-                                    Logs.LogAndSave($"已拉黑: {item}", "BLACKLIST", ConsoleColor.Cyan);
+                                    Logs.LogAndSave($"已拉黑: {item}", "[BLACKLIST]", ConsoleColor.Cyan);
                                     Datas.Fans.Remove(item);
                                     Datas.COL_FANS.Delete(item.Id);
                                 }
@@ -219,9 +215,9 @@ namespace AntiKiller.Core
                         {
                             Datas.Fans.Add(f);
                             Datas.COL_FANS.Insert(f);
+                            Logs.Success($"[{DateTime.Now}] 更新完成, 新增 {newFans.Count} 个粉丝: {string.Join(", ", newFans.Select(a => a.ToString()))}");
                         }
                     });
-                    Logs.Success($"[{DateTime.Now}] 更新完成, 新增 {newFans.Count} 个粉丝: {string.Join(", ", newFans.Select(a => a.ToString()))}");
                 }
                 else
                 {
@@ -229,11 +225,11 @@ namespace AntiKiller.Core
                 }
             }
         }
-        public static bool? IsFollowingMe(long uid)
+        public static async Task<bool?> IsFollowingMe(long uid)
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"https://api.bilibili.com/x/space/acc/relation?mid={uid}");
             requestMessage.Headers.TryAddWithoutValidation("Cookie", Config.Instance.Cookie);
-            var json = client.Send(requestMessage)?.Content?.ReadAsStringAsync().Result;
+            var json = await client.Send(requestMessage)?.Content?.ReadAsStringAsync();
             var jsonNode = JsonNode.Parse(json);
             if (jsonNode["code"].GetValue<int>() == 0)
             {

@@ -9,7 +9,7 @@ namespace AntiKiller.Core
 #else
         public const bool IsDebug = false;
 #endif
-        public static List<FansInfo> Fans = new();
+        public static List<FansInfo> Fans { get; private set; } = new();
         public static LiteDatabase DB { get; private set; }
         public static ILiteCollection<FansInfo> COL_FANS { get; private set; }
         public static ILiteCollection<AntiInfo> COL_ANTIS { get; private set; }
