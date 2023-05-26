@@ -143,53 +143,56 @@ namespace AntiKiller.Core
                 if (unfollow.Count > 0)
                 {
                     Logs.Info($"[{DateTime.Now}] 发现 {unfollow.Count} 个取关粉丝\r\n {string.Join(", ", unfollow.Select(a => a.ToString()))}");
-                    try
+                    if (Config.Instance.Block)
                     {
-                        var cookie = Config.Instance.Cookie.Replace(" ", "");
-                        var pairs = cookie.Split(";");
-                        var bili_jct = string.Empty;
-                        foreach (var item in pairs)
+                        try
                         {
-                            if (item.Split('=') is { } pair && pair[0].Trim() == "bili_jct")
-                                bili_jct = pair[1];
-                        }
-
-                        foreach (var item in unfollow)
-                        {
-                            // 创建一个FormUrlEncodedContent实例，用于存储urlencoded数据
-                            var content = new FormUrlEncodedContent(new[]
+                            var cookie = Config.Instance.Cookie.Replace(" ", "");
+                            var pairs = cookie.Split(";");
+                            var bili_jct = string.Empty;
+                            foreach (var item in pairs)
                             {
+                                if (item.Split('=') is { } pair && pair[0].Trim() == "bili_jct")
+                                    bili_jct = pair[1];
+                            }
+
+                            foreach (var item in unfollow)
+                            {
+                                // 创建一个FormUrlEncodedContent实例，用于存储urlencoded数据
+                                var content = new FormUrlEncodedContent(new[]
+                                {
                                     new KeyValuePair<string, string>("fid", item.Id.ToString()),
                                     new KeyValuePair<string, string>("act", "5"), //拉黑
                                     new KeyValuePair<string, string>("re_src", "11"),
                                     new KeyValuePair<string, string>("csrf", bili_jct)
                                 });
-                            content.Headers.Add("Cookie", Config.Instance.Cookie);
-                            try
-                            {
-                                var response = await client.PostAsync("https://api.bilibili.com/x/relation/modify", content);
-                                var json = JsonNode.Parse(await response.Content.ReadAsStreamAsync());
-                                if (json["code"]?.GetValue<int>() == 0)
+                                content.Headers.Add("Cookie", Config.Instance.Cookie);
+                                try
                                 {
-                                    Logs.LogAndSave($"已拉黑: {item}", "[BLACKLIST]", ConsoleColor.Cyan);
-                                    Datas.Fans.Remove(item);
-                                    Datas.COL_FANS.Delete(item.Id);
+                                    var response = await client.PostAsync("https://api.bilibili.com/x/relation/modify", content);
+                                    var json = JsonNode.Parse(await response.Content.ReadAsStreamAsync());
+                                    if (json["code"]?.GetValue<int>() == 0)
+                                    {
+                                        Logs.LogAndSave($"已拉黑: {item}", "[BLACKLIST]", ConsoleColor.Cyan);
+                                        Datas.Fans.Remove(item);
+                                        Datas.COL_FANS.Delete(item.Id);
+                                    }
+                                    else
+                                    {
+                                        Logs.Warn($"{item.Name} 拉黑失败: {json["message"]}");
+                                    }
                                 }
-                                else
+                                catch (Exception ex)
                                 {
-                                    Logs.Warn($"{item.Name} 拉黑失败: {json["message"]}");
+                                    Logs.Error(ex);
+                                    Task.Delay(1000 * 10).Wait();
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                Logs.Error(ex);
-                                Task.Delay(1000 * 10).Wait();
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logs.Error(ex);
+                        catch (Exception ex)
+                        {
+                            Logs.Error(ex);
+                        }
                     }
                     var antiInfo = unfollow.Select(a => new AntiInfo()
                     {

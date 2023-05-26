@@ -27,6 +27,7 @@ namespace AntiKiller.Core
                     {
                         UId = json[nameof(UId)]?.GetValue<long>() ?? 0,
                         Cookie = json[nameof(Cookie)]?.GetValue<string>() ?? string.Empty,
+                        Block = json[nameof(Cookie)]?.GetValue<bool>() ?? default,
                     };
                     return config;
                 }
@@ -45,5 +46,6 @@ namespace AntiKiller.Core
         }
         public long UId { get; set; }
         public string Cookie { get; set; } = "";
+        public bool Block { get; set; } = false;
     }
 }
